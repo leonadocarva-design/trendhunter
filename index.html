@@ -1,259 +1,568 @@
--- ============================================================
--- TrendHunter AI — Supabase Database Schema
--- Execute na ordem: 001 → 002 → 003 → 004
--- ============================================================
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TrendHunter AI — Encontre Produtos Virais Antes da Concorrência</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#020408;
+  --surface:#0a0f1a;
+  --surface2:#111827;
+  --border:#1e2d40;
+  --accent:#00e5ff;
+  --accent2:#ff6b35;
+  --accent3:#a855f7;
+  --text:#f0f4ff;
+  --muted:#8899b0;
+  --green:#00d68f;
+  --radius:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow-x:hidden}
+h1,h2,h3,.logo-text,.price{font-family:'Syne',sans-serif}
 
--- ============================================================
--- 001_users.sql — Perfis de usuários e planos
--- ============================================================
-create extension if not exists "uuid-ossp";
+/* NAV */
+nav{position:fixed;top:0;width:100%;z-index:100;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px);background:rgba(2,4,8,.8);border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:center;gap:.6rem}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent3));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.logo-text{font-size:1.1rem;font-weight:700;letter-spacing:-.02em}
+.logo-text span{color:var(--accent)}
+nav ul{list-style:none;display:flex;gap:2rem}
+nav ul a{color:var(--muted);text-decoration:none;font-size:.9rem;transition:.2s}
+nav ul a:hover{color:var(--text)}
+.nav-cta{background:var(--accent);color:#000;padding:.5rem 1.2rem;border-radius:8px;text-decoration:none;font-weight:600;font-size:.9rem;font-family:'Syne',sans-serif;transition:.2s}
+.nav-cta:hover{background:#33ecff}
 
--- Tabela de perfis (estende auth.users do Supabase)
-create table public.profiles (
-  id uuid references auth.users(id) on delete cascade primary key,
-  email text not null,
-  full_name text,
-  avatar_url text,
-  plan text not null default 'free' check (plan in ('free', 'pro', 'scale')),
-  plan_status text not null default 'active' check (plan_status in ('active', 'canceled', 'past_due', 'trialing')),
-  stripe_customer_id text unique,
-  stripe_subscription_id text unique,
-  trial_ends_at timestamptz,
-  searches_today int not null default 0,
-  searches_reset_at date not null default current_date,
-  is_admin boolean not null default false,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+/* HERO */
+.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:8rem 2rem 4rem;position:relative;overflow:hidden}
+.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(0,229,255,.08) 0%,transparent 70%);pointer-events:none}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:60px 60px;opacity:.3;pointer-events:none}
+.badge{display:inline-flex;align-items:center;gap:.4rem;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);color:var(--accent);padding:.35rem 1rem;border-radius:100px;font-size:.8rem;font-weight:500;margin-bottom:1.5rem}
+.badge::before{content:'●';font-size:.5rem;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.hero h1{font-size:clamp(2.8rem,7vw,5.5rem);font-weight:800;line-height:1.05;letter-spacing:-.04em;margin-bottom:1.5rem;max-width:900px}
+.hero h1 .highlight{color:var(--accent);position:relative;display:inline-block}
+.hero h1 .highlight2{color:var(--accent2)}
+.hero-sub{font-size:1.15rem;color:var(--muted);max-width:560px;margin:0 auto 2.5rem;line-height:1.7;font-weight:300}
+.hero-actions{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-bottom:3rem}
+.btn-primary{background:var(--accent);color:#000;padding:.85rem 2rem;border-radius:10px;font-weight:700;font-size:1rem;font-family:'Syne',sans-serif;text-decoration:none;transition:.2s;border:none;cursor:pointer}
+.btn-primary:hover{background:#33ecff;transform:translateY(-2px)}
+.btn-secondary{background:transparent;color:var(--text);padding:.85rem 2rem;border-radius:10px;font-weight:500;font-size:.95rem;text-decoration:none;border:1px solid var(--border);transition:.2s;cursor:pointer;font-family:'DM Sans',sans-serif}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+.hero-social-proof{display:flex;align-items:center;gap:1rem;justify-content:center;color:var(--muted);font-size:.85rem}
+.avatars{display:flex}
+.avatars .av{width:28px;height:28px;border-radius:50%;border:2px solid var(--bg);margin-left:-8px;font-size:.65rem;display:flex;align-items:center;justify-content:center;font-weight:600}
+.avatars .av:first-child{margin-left:0}
+.stars{color:#fbbf24;letter-spacing:2px;font-size:.75rem}
 
--- RLS (Row Level Security)
-alter table public.profiles enable row level security;
+/* DEMO WIDGET */
+.demo-section{padding:4rem 2rem;max-width:1100px;margin:0 auto}
+.demo-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;overflow:hidden;position:relative}
+.demo-bar{background:var(--surface2);padding:.75rem 1rem;display:flex;align-items:center;gap:.5rem;border-bottom:1px solid var(--border)}
+.demo-dot{width:10px;height:10px;border-radius:50%}
+.demo-search{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;padding:.4rem .75rem;color:var(--muted);font-size:.8rem;font-family:'DM Sans',sans-serif}
+.demo-body{padding:1.5rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
+.product-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:1rem;position:relative;overflow:hidden}
+.product-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.product-card.hot::before{background:linear-gradient(90deg,var(--accent2),#ff9f1c)}
+.product-card.trending::before{background:linear-gradient(90deg,var(--accent),var(--accent3))}
+.product-card.new::before{background:linear-gradient(90deg,var(--green),#00b4d8)}
+.pc-tag{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem}
+.pc-tag.hot{color:var(--accent2)}
+.pc-tag.trending{color:var(--accent)}
+.pc-tag.new{color:var(--green)}
+.pc-name{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:600;margin-bottom:.75rem;line-height:1.3}
+.score-bar{margin-bottom:.5rem}
+.score-label{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);margin-bottom:.3rem}
+.score-track{background:rgba(255,255,255,.07);border-radius:100px;height:5px}
+.score-fill{height:5px;border-radius:100px;transition:width .8s ease}
+.score-fill.high{background:linear-gradient(90deg,var(--accent2),#ff9f1c)}
+.score-fill.med{background:linear-gradient(90deg,var(--accent),var(--accent3))}
+.score-fill.ok{background:linear-gradient(90deg,var(--green),#00b4d8)}
+.pc-viral{display:flex;align-items:center;gap:.4rem;margin-top:.75rem;font-size:.75rem}
+.viral-score{font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800}
+.viral-score.high{color:var(--accent2)}
+.viral-score.med{color:var(--accent)}
+.viral-score.ok{color:var(--green)}
+.viral-label{color:var(--muted);line-height:1.3}
 
-create policy "Users can view own profile"
-  on public.profiles for select
-  using (auth.uid() = id);
+/* STATS */
+.stats{background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:3rem 2rem}
+.stats-grid{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:2rem;text-align:center}
+.stat-num{font-family:'Syne',sans-serif;font-size:2.5rem;font-weight:800;color:var(--accent)}
+.stat-desc{color:var(--muted);font-size:.85rem;margin-top:.3rem}
 
-create policy "Users can update own profile"
-  on public.profiles for update
-  using (auth.uid() = id);
+/* FEATURES */
+.features{padding:6rem 2rem;max-width:1100px;margin:0 auto}
+.section-label{font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin-bottom:.75rem}
+.section-title{font-family:'Syne',sans-serif;font-size:clamp(2rem,4vw,3rem);font-weight:800;letter-spacing:-.03em;margin-bottom:1rem;line-height:1.1}
+.section-sub{color:var(--muted);max-width:500px;line-height:1.7;font-weight:300}
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3rem}
+.feat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;transition:.3s;position:relative;overflow:hidden}
+.feat-card:hover{border-color:rgba(0,229,255,.3);transform:translateY(-4px)}
+.feat-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:1rem}
+.feat-icon.cyan{background:rgba(0,229,255,.1);color:var(--accent)}
+.feat-icon.orange{background:rgba(255,107,53,.1);color:var(--accent2)}
+.feat-icon.purple{background:rgba(168,85,247,.1);color:var(--accent3)}
+.feat-icon.green{background:rgba(0,214,143,.1);color:var(--green)}
+.feat-card h3{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:.5rem}
+.feat-card p{color:var(--muted);font-size:.875rem;line-height:1.65;font-weight:300}
+.feat-card .tag{display:inline-block;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);color:var(--accent);font-size:.65rem;padding:.2rem .5rem;border-radius:4px;margin-top:.75rem;font-weight:500;text-transform:uppercase;letter-spacing:.06em}
 
-create policy "Admins can view all profiles"
-  on public.profiles for all
-  using (
-    exists (
-      select 1 from public.profiles
-      where id = auth.uid() and is_admin = true
-    )
-  );
+/* HOW IT WORKS */
+.how{background:var(--surface);padding:6rem 2rem;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.how-inner{max-width:1000px;margin:0 auto}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;margin-top:3rem;position:relative}
+.steps::before{content:'';position:absolute;top:24px;left:16%;right:16%;height:1px;background:linear-gradient(90deg,transparent,var(--border),var(--border),transparent)}
+.step{text-align:center}
+.step-num{width:48px;height:48px;border-radius:50%;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:700;font-size:.9rem;margin:0 auto 1rem;color:var(--accent);position:relative;z-index:1}
+.step h3{font-family:'Syne',sans-serif;font-size:1.05rem;font-weight:700;margin-bottom:.5rem}
+.step p{color:var(--muted);font-size:.875rem;line-height:1.6;font-weight:300}
 
--- Trigger: criar perfil ao registrar usuário
-create or replace function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.profiles (id, email, full_name)
-  values (
-    new.id,
-    new.email,
-    coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1))
-  );
-  return new;
-end;
-$$ language plpgsql security definer;
+/* PRICING */
+.pricing{padding:6rem 2rem;max-width:1000px;margin:0 auto;text-align:center}
+.pricing-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;margin-top:3rem;text-align:left}
+.plan{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:2rem;position:relative}
+.plan.popular{border-color:var(--accent);background:linear-gradient(180deg,rgba(0,229,255,.05) 0%,var(--surface) 100%)}
+.popular-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;font-size:.7rem;font-weight:700;font-family:'Syne',sans-serif;padding:.3rem .8rem;border-radius:100px;white-space:nowrap;text-transform:uppercase;letter-spacing:.06em}
+.plan-name{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.5rem}
+.price{font-size:2.8rem;font-weight:800;line-height:1}
+.price span{font-size:1rem;color:var(--muted);font-weight:400;font-family:'DM Sans',sans-serif}
+.plan-desc{color:var(--muted);font-size:.85rem;margin:1rem 0 1.5rem;font-weight:300}
+.plan-divider{border:none;border-top:1px solid var(--border);margin:1.5rem 0}
+.plan-features{list-style:none;display:flex;flex-direction:column;gap:.65rem}
+.plan-features li{font-size:.875rem;color:var(--muted);display:flex;gap:.5rem;align-items:flex-start;font-weight:300}
+.plan-features li::before{content:'✓';color:var(--green);font-weight:700;flex-shrink:0}
+.plan-features li.no::before{content:'✕';color:rgba(255,255,255,.2)}
+.plan-features li.no{color:rgba(255,255,255,.2)}
+.plan-btn{display:block;text-align:center;margin-top:1.5rem;padding:.75rem;border-radius:8px;font-weight:700;font-family:'Syne',sans-serif;font-size:.9rem;text-decoration:none;transition:.2s}
+.plan-btn.outline{border:1px solid var(--border);color:var(--text)}
+.plan-btn.outline:hover{border-color:var(--accent);color:var(--accent)}
+.plan-btn.filled{background:var(--accent);color:#000}
+.plan-btn.filled:hover{background:#33ecff}
+.plan-btn.dark{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.plan-btn.dark:hover{border-color:var(--accent3);color:var(--accent3)}
 
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
+/* TESTIMONIALS */
+.testimonials{background:var(--surface);padding:6rem 2rem;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.testimonials-inner{max-width:1100px;margin:0 auto}
+.testimonials-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3rem}
+.tcard{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem}
+.tcard-stars{color:#fbbf24;font-size:.75rem;letter-spacing:2px;margin-bottom:.75rem}
+.tcard-text{color:var(--text);font-size:.9rem;line-height:1.7;margin-bottom:1.25rem;font-weight:300;font-style:italic}
+.tcard-author{display:flex;align-items:center;gap:.75rem}
+.tcard-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;font-family:'Syne',sans-serif;flex-shrink:0}
+.tcard-name{font-size:.875rem;font-weight:600}
+.tcard-role{font-size:.75rem;color:var(--muted)}
 
--- Trigger: updated_at automático
-create or replace function public.set_updated_at()
-returns trigger as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$ language plpgsql;
+/* FAQ */
+.faq{padding:6rem 2rem;max-width:700px;margin:0 auto}
+.faq-item{border-bottom:1px solid var(--border);padding:1.25rem 0}
+.faq-q{font-family:'Syne',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.faq-q:hover{color:var(--accent)}
+.faq-a{color:var(--muted);font-size:.9rem;line-height:1.7;margin-top:.75rem;font-weight:300;display:none}
+.faq-a.open{display:block}
 
-create trigger profiles_updated_at
-  before update on public.profiles
-  for each row execute procedure public.set_updated_at();
+/* CTA */
+.cta-section{padding:6rem 2rem;text-align:center;position:relative;overflow:hidden}
+.cta-section::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(0,229,255,.06),transparent);pointer-events:none}
+.cta-inner{max-width:700px;margin:0 auto;position:relative}
+.cta-inner h2{font-family:'Syne',sans-serif;font-size:clamp(2rem,5vw,3.5rem);font-weight:800;letter-spacing:-.04em;margin-bottom:1rem}
+.cta-inner p{color:var(--muted);font-size:1.05rem;margin-bottom:2rem;font-weight:300}
+.cta-guarantee{font-size:.8rem;color:var(--muted);margin-top:1rem}
 
+/* FOOTER */
+footer{background:var(--surface);border-top:1px solid var(--border);padding:2.5rem 2rem}
+.footer-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between}
+.footer-links{display:flex;gap:2rem}
+.footer-links a{color:var(--muted);text-decoration:none;font-size:.85rem;transition:.2s}
+.footer-links a:hover{color:var(--text)}
+.footer-copy{color:var(--muted);font-size:.8rem}
 
--- ============================================================
--- 002_products.sql — Produtos e análises
--- ============================================================
+/* RESPONSIVE */
+@media(max-width:768px){
+  .features-grid,.pricing-grid,.testimonials-grid{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .steps{grid-template-columns:1fr}
+  .steps::before{display:none}
+  .demo-body{grid-template-columns:1fr}
+  nav ul{display:none}
+  .footer-inner{flex-direction:column;gap:1rem;text-align:center}
+  .footer-links{flex-wrap:wrap;justify-content:center}
+}
 
--- Tabela de produtos analisados (cache)
-create table public.products (
-  id uuid default uuid_generate_v4() primary key,
-  slug text unique not null,
-  name text not null,
-  description text,
-  category text,
-  image_url text,
-  source_url text,
-  price_usd numeric(10,2),
-  -- Scores
-  viral_score numeric(3,1) check (viral_score >= 0 and viral_score <= 10),
-  engagement_score numeric(5,2),
-  trend_score numeric(5,2),
-  competition_score numeric(5,2),
-  -- Meta
-  trend_status text check (trend_status in ('rising', 'peak', 'declining', 'stable', 'new')),
-  competition_level text check (competition_level in ('very_low', 'low', 'medium', 'high', 'very_high')),
-  -- Dados extras (JSONB para flexibilidade)
-  trend_data jsonb default '{}',    -- {labels:[], values:[]}
-  ad_data jsonb default '{}',       -- dados de anúncios ativos
-  keywords jsonb default '[]',      -- palavras-chave relacionadas
-  platforms jsonb default '[]',     -- plataformas onde foi visto
-  -- Controle
-  last_analyzed_at timestamptz default now(),
-  analysis_count int default 1,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+/* ANIMATIONS */
+@keyframes floatIn{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+.hero>*{animation:floatIn .7s ease both}
+.hero .badge{animation-delay:0s}
+.hero h1{animation-delay:.1s}
+.hero-sub{animation-delay:.2s}
+.hero-actions{animation-delay:.3s}
+.hero-social-proof{animation-delay:.4s}
+</style>
+</head>
+<body>
 
-create index products_viral_score_idx on public.products(viral_score desc);
-create index products_category_idx on public.products(category);
-create index products_trend_status_idx on public.products(trend_status);
-create index products_created_at_idx on public.products(created_at desc);
+<!-- NAV -->
+<nav>
+  <div class="logo">
+    <div class="logo-icon">🔥</div>
+    <div class="logo-text">Trend<span>Hunter</span> AI</div>
+  </div>
+  <ul>
+    <li><a href="#features">Recursos</a></li>
+    <li><a href="#pricing">Preços</a></li>
+    <li><a href="#faq">FAQ</a></li>
+  </ul>
+  <a href="/signup" class="nav-cta">Começar Grátis →</a>
+</nav>
 
--- RLS: produtos são públicos para leitura
-alter table public.products enable row level security;
-create policy "Products are viewable by authenticated users"
-  on public.products for select
-  using (auth.role() = 'authenticated');
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div style="position:relative;z-index:1">
+    <div class="badge">✨ Inteligência Artificial para Dropshipping</div>
+    <h1>Encontre Produtos Virais <span class="highlight">Antes</span><br/>da Sua <span class="highlight2">Concorrência</span></h1>
+    <p class="hero-sub">Score de viralização em tempo real, copy de anúncios gerada por IA, públicos de alta conversão para Meta e Google — tudo em uma plataforma.</p>
+    <div class="hero-actions">
+      <a href="/signup" class="btn-primary">🚀 Teste 7 Dias Grátis</a>
+      <a href="#demo" class="btn-secondary">Ver Demo ao Vivo</a>
+    </div>
+    <div class="hero-social-proof">
+      <div class="avatars">
+        <div class="av" style="background:#0d47a1">KS</div>
+        <div class="av" style="background:#1b5e20">MT</div>
+        <div class="av" style="background:#4a148c">RL</div>
+        <div class="av" style="background:#b71c1c">AP</div>
+        <div class="av" style="background:#e65100">FO</div>
+      </div>
+      <div>
+        <div class="stars">★★★★★</div>
+        <div>+3.400 dropshippers ativos</div>
+      </div>
+    </div>
+  </div>
+</section>
 
--- Trigger updated_at
-create trigger products_updated_at
-  before update on public.products
-  for each row execute procedure public.set_updated_at();
+<!-- DEMO -->
+<section class="demo-section" id="demo">
+  <div class="demo-card">
+    <div class="demo-bar">
+      <div class="demo-dot" style="background:#ff5f57"></div>
+      <div class="demo-dot" style="background:#ffbd2e"></div>
+      <div class="demo-dot" style="background:#28c840"></div>
+      <div class="demo-search">🔍 Pesquisar produtos virais... ex: "massageador", "led", "fitness"</div>
+    </div>
+    <div class="demo-body">
+      <div class="product-card hot">
+        <div class="pc-tag hot">🔥 Em Chamas</div>
+        <div class="pc-name">Mini Massageador Percussivo Pro Max</div>
+        <div class="score-bar">
+          <div class="score-label"><span>Engajamento</span><span>97%</span></div>
+          <div class="score-track"><div class="score-fill high" style="width:97%"></div></div>
+        </div>
+        <div class="score-bar">
+          <div class="score-label"><span>Tendência</span><span>92%</span></div>
+          <div class="score-track"><div class="score-fill high" style="width:92%"></div></div>
+        </div>
+        <div class="score-bar">
+          <div class="score-label"><span>Concorrência</span><span>Baixa</span></div>
+          <div class="score-track"><div class="score-fill high" style="width:25%"></div></div>
+        </div>
+        <div class="pc-viral">
+          <div class="viral-score high">9.4</div>
+          <div class="viral-label">Score de<br/>Viralização</div>
+        </div>
+      </div>
+      <div class="product-card trending">
+        <div class="pc-tag trending">📈 Tendência</div>
+        <div class="pc-name">Luz LED RGB Neon Decoração Quarto</div>
+        <div class="score-bar">
+          <div class="score-label"><span>Engajamento</span><span>83%</span></div>
+          <div class="score-track"><div class="score-fill med" style="width:83%"></div></div>
+        </div>
+        <div class="score-bar">
+          <div class="score-label"><span>Tendência</span><span>78%</span></div>
+          <div class="score-track"><div class="score-fill med" style="width:78%"></div></div>
+        </div>
+        <div class="score-bar">
+          <div class="score-label"><span>Concorrência</span><span>Média</span></div>
+          <div class="score-track"><div class="score-fill med" style="width:55%"></div></div>
+        </div>
+        <div class="pc-viral">
+          <div class="viral-score med">7.8</div>
+          <div class="viral-label">Score de<br/>Viralização</div>
+        </div>
+      </div>
+      <div class="product-card new">
+        <div class="pc-tag new">🆕 Surgindo</div>
+        <div class="pc-name">Fone Bluetooth 5.0 Cancelamento Ruído</div>
+        <div class="score-bar">
+          <div class="score-label"><span>Engajamento</span><span>71%</span></div>
+          <div class="score-track"><div class="score-fill ok" style="width:71%"></div></div>
+        </div>
+        <div class="score-bar">
+          <div class="score-label"><span>Tendência</span><span>88%</span></div>
+          <div class="score-track"><div class="score-fill ok" style="width:88%"></div></div>
+        </div>
+        <div class="score-bar">
+          <div class="score-label"><span>Concorrência</span><span>Alta</span></div>
+          <div class="score-track"><div class="score-fill ok" style="width:70%"></div></div>
+        </div>
+        <div class="pc-viral">
+          <div class="viral-score ok">7.1</div>
+          <div class="viral-label">Score de<br/>Viralização</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
+<!-- STATS -->
+<section class="stats">
+  <div class="stats-grid">
+    <div><div class="stat-num">500K+</div><div class="stat-desc">Produtos analisados</div></div>
+    <div><div class="stat-num">94%</div><div class="stat-desc">Precisão de tendências</div></div>
+    <div><div class="stat-num">3.4x</div><div class="stat-desc">ROAS médio dos usuários</div></div>
+    <div><div class="stat-num">R$ 12M</div><div class="stat-desc">Em vendas geradas</div></div>
+  </div>
+</section>
 
--- Tabela de copies geradas por IA
-create table public.ai_copies (
-  id uuid default uuid_generate_v4() primary key,
-  product_id uuid references public.products(id) on delete cascade,
-  user_id uuid references public.profiles(id) on delete cascade,
-  type text not null check (type in ('headline', 'ad_copy', 'cta', 'audience_meta', 'audience_google')),
-  content text not null,
-  platform text check (platform in ('meta', 'google', 'tiktok', 'email', 'generic')),
-  tone text check (tone in ('urgency', 'curiosity', 'social_proof', 'benefit', 'pain')),
-  metadata jsonb default '{}',
-  is_favorite boolean default false,
-  created_at timestamptz not null default now()
-);
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="section-label">Recursos</div>
+  <h2 class="section-title">Tudo que você precisa<br/>para dominar o mercado</h2>
+  <p class="section-sub">De análise de dados a copy de anúncios — a IA faz o trabalho pesado pra você vender mais.</p>
+  <div class="features-grid">
+    <div class="feat-card">
+      <div class="feat-icon cyan">🎯</div>
+      <h3>Score de Viralização</h3>
+      <p>Algoritmo proprietário que cruza dados de engajamento, histórico de anúncios e tendências de busca para gerar um score de 0 a 10.</p>
+      <span class="tag">IA Proprietária</span>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon orange">📡</div>
+      <h3>Detector de Tendências</h3>
+      <p>Monitora sinais do Facebook Ads Library, TikTok e Google Trends em tempo real. Seja o primeiro a descobrir o próximo produto viral.</p>
+      <span class="tag">Tempo Real</span>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon purple">✍️</div>
+      <h3>Copy de Anúncios com IA</h3>
+      <p>Gera headlines, textos de anúncio e CTAs otimizados para conversão usando GPT-4. 10 variações em segundos.</p>
+      <span class="tag">GPT-4 Turbo</span>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon green">👥</div>
+      <h3>Públicos Inteligentes</h3>
+      <p>Sugestão de públicos detalhados para Meta Ads e Google Ads baseado no perfil do produto e dados históricos de campanhas similares.</p>
+      <span class="tag">Meta + Google</span>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon cyan">📊</div>
+      <h3>Dashboard Analítico</h3>
+      <p>Visualize tendências, histórico de buscas, produtos favoritos e métricas de mercado em um painel limpo e intuitivo.</p>
+      <span class="tag">Analytics</span>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon orange">🔔</div>
+      <h3>Alertas de Oportunidade</h3>
+      <p>Receba notificações por e-mail quando um produto do seu nicho atingir um score alto — antes de todo mundo.</p>
+      <span class="tag">Alertas Automáticos</span>
+    </div>
+  </div>
+</section>
 
-create index ai_copies_user_idx on public.ai_copies(user_id, created_at desc);
-create index ai_copies_product_idx on public.ai_copies(product_id);
+<!-- HOW IT WORKS -->
+<section class="how">
+  <div class="how-inner">
+    <div class="section-label" style="text-align:center">Como Funciona</div>
+    <h2 class="section-title" style="text-align:center;max-width:600px;margin:0 auto .5rem">3 passos para encontrar<br/>seu próximo produto milionário</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Pesquise o Nicho</h3>
+        <p>Digite palavras-chave do seu nicho ou cole um link de produto. Nossa IA analisa milhares de dados instantaneamente.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Analise o Score</h3>
+        <p>Veja o score de viralização, gráfico de tendência, análise de concorrência e saturação de mercado em segundos.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Lance o Anúncio</h3>
+        <p>Use a copy gerada por IA, os públicos sugeridos e os headlines otimizados. Copie, cole e venda.</p>
+      </div>
+    </div>
+  </div>
+</section>
 
-alter table public.ai_copies enable row level security;
-create policy "Users can manage own copies"
-  on public.ai_copies for all
-  using (auth.uid() = user_id);
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <div class="section-label">Planos</div>
+  <h2 class="section-title">Comece grátis. Escale quando quiser.</h2>
+  <p class="section-sub" style="margin:0 auto">Sem contrato. Cancele quando quiser. Suporte em português.</p>
+  <div class="pricing-grid">
+    <!-- FREE -->
+    <div class="plan">
+      <div class="plan-name">Free</div>
+      <div class="price">R$ 0<span>/mês</span></div>
+      <p class="plan-desc">Para quem está começando no dropshipping e quer testar a plataforma.</p>
+      <hr class="plan-divider"/>
+      <ul class="plan-features">
+        <li>5 pesquisas por dia</li>
+        <li>Score de viralização básico</li>
+        <li>Histórico 7 dias</li>
+        <li>1 nicho monitorado</li>
+        <li class="no">Copy de anúncios IA</li>
+        <li class="no">Sugestão de públicos</li>
+        <li class="no">Alertas de oportunidade</li>
+        <li class="no">API de integração</li>
+      </ul>
+      <a href="/signup" class="plan-btn outline">Criar conta grátis</a>
+    </div>
+    <!-- PRO -->
+    <div class="plan popular">
+      <div class="popular-badge">⚡ Mais Popular</div>
+      <div class="plan-name">Pro</div>
+      <div class="price">R$ 97<span>/mês</span></div>
+      <p class="plan-desc">Para dropshippers que querem vantagem competitiva real e resultados consistentes.</p>
+      <hr class="plan-divider"/>
+      <ul class="plan-features">
+        <li>Pesquisas ilimitadas</li>
+        <li>Score de viralização completo</li>
+        <li>Histórico 90 dias</li>
+        <li>10 nichos monitorados</li>
+        <li>Copy de anúncios IA (ilimitado)</li>
+        <li>Sugestão de públicos Meta + Google</li>
+        <li>Alertas por e-mail e WhatsApp</li>
+        <li class="no">API de integração</li>
+      </ul>
+      <a href="/signup?plan=pro" class="plan-btn filled">Começar por R$ 97/mês →</a>
+    </div>
+    <!-- SCALE -->
+    <div class="plan">
+      <div class="plan-name">Scale</div>
+      <div class="price">R$ 247<span>/mês</span></div>
+      <p class="plan-desc">Para agências e dropshippers avançados que gerenciam múltiplas lojas e equipes.</p>
+      <hr class="plan-divider"/>
+      <ul class="plan-features">
+        <li>Tudo do Pro</li>
+        <li>Nichos ilimitados</li>
+        <li>Histórico 1 ano</li>
+        <li>5 usuários/equipe</li>
+        <li>API de integração completa</li>
+        <li>Dashboard white-label</li>
+        <li>Relatórios exportáveis (PDF/CSV)</li>
+        <li>Suporte prioritário</li>
+      </ul>
+      <a href="/signup?plan=scale" class="plan-btn dark">Falar com especialista →</a>
+    </div>
+  </div>
+</section>
 
+<!-- TESTIMONIALS -->
+<section class="testimonials">
+  <div class="testimonials-inner">
+    <div class="section-label" style="text-align:center">Depoimentos</div>
+    <h2 class="section-title" style="text-align:center;max-width:700px;margin:0 auto">Dropshippers reais, resultados reais</h2>
+    <div class="testimonials-grid">
+      <div class="tcard">
+        <div class="tcard-stars">★★★★★</div>
+        <p class="tcard-text">"Em 3 semanas usando o TrendHunter encontrei um produto com score 9.2 que faturou R$ 47 mil. A copy gerada pela IA converteu na primeira campanha."</p>
+        <div class="tcard-author">
+          <div class="tcard-av" style="background:rgba(0,229,255,.15);color:var(--accent)">KS</div>
+          <div><div class="tcard-name">Kaio Silva</div><div class="tcard-role">Dropshipper · São Paulo</div></div>
+        </div>
+      </div>
+      <div class="tcard">
+        <div class="tcard-stars">★★★★★</div>
+        <p class="tcard-text">"Antes eu gastava horas pesquisando no AliExpress. Agora em 10 minutos tenho o produto, a copy e os públicos prontos. Meu ROAS subiu de 1.8 para 4.2."</p>
+        <div class="tcard-author">
+          <div class="tcard-av" style="background:rgba(255,107,53,.15);color:var(--accent2)">MT</div>
+          <div><div class="tcard-name">Marina Torres</div><div class="tcard-role">E-commerce · Curitiba</div></div>
+        </div>
+      </div>
+      <div class="tcard">
+        <div class="tcard-stars">★★★★★</div>
+        <p class="tcard-text">"Uso para gerenciar as lojas dos meus clientes. O plano Scale vale muito. Já gerei mais de R$ 200k em vendas combinadas usando os alertas do TrendHunter."</p>
+        <div class="tcard-author">
+          <div class="tcard-av" style="background:rgba(168,85,247,.15);color:var(--accent3)">RL</div>
+          <div><div class="tcard-name">Rafael Lima</div><div class="tcard-role">Agência Digital · BH</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
--- ============================================================
--- 003_searches.sql — Histórico de buscas
--- ============================================================
+<!-- FAQ -->
+<section class="faq" id="faq">
+  <div style="text-align:center;margin-bottom:2rem">
+    <div class="section-label" style="justify-content:center;display:flex">FAQ</div>
+    <h2 class="section-title">Perguntas frequentes</h2>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">Como o score de viralização é calculado? <span>+</span></div>
+    <div class="faq-a">Nosso algoritmo analisa mais de 40 sinais: engajamento em anúncios ativos, velocidade de crescimento no Google Trends, histórico de vendas em marketplaces, volume de buscas e sazonalidade. O resultado é um score de 0 a 10.</div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">Funciona para qualquer nicho? <span>+</span></div>
+    <div class="faq-a">Sim. Nossa base cobre mais de 500 mil produtos em 200+ nichos. De fitness a eletrônicos, pets, beleza, casa e decoração, moda e muito mais.</div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">A copy gerada pela IA é boa mesmo? <span>+</span></div>
+    <div class="faq-a">Usamos GPT-4 Turbo com prompts treinados especificamente para dropshipping e e-commerce brasileiro. Você recebe headlines, textos de anúncio e CTAs otimizados. Mas você pode editar e adaptar como quiser.</div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">Posso cancelar a qualquer momento? <span>+</span></div>
+    <div class="faq-a">Sim, sem burocracia. Você cancela pela própria plataforma em menos de 1 minuto. Não há fidelidade mínima.</div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">Tem garantia de devolução? <span>+</span></div>
+    <div class="faq-a">Sim. Oferecemos 7 dias de teste grátis sem cartão. Se em qualquer momento nos primeiros 30 dias você não ficar satisfeito, devolvemos 100% do valor pago — sem perguntas.</div>
+  </div>
+</section>
 
-create table public.search_history (
-  id uuid default uuid_generate_v4() primary key,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  query text not null,
-  filters jsonb default '{}',          -- {category, min_score, trend_status}
-  results_count int default 0,
-  top_product_id uuid references public.products(id),
-  top_score numeric(3,1),
-  created_at timestamptz not null default now()
-);
+<!-- CTA FINAL -->
+<section class="cta-section">
+  <div class="cta-inner">
+    <h2>Comece a vender produtos <span style="color:var(--accent)">virais</span> hoje</h2>
+    <p>Junte-se a 3.400+ dropshippers que já estão usando IA para dominar o mercado.</p>
+    <a href="/signup" class="btn-primary" style="font-size:1.1rem;padding:1rem 2.5rem">🚀 Criar Conta Grátis</a>
+    <div class="cta-guarantee">🔒 Sem cartão de crédito · 7 dias grátis · Cancele quando quiser</div>
+  </div>
+</section>
 
-create index search_history_user_idx on public.search_history(user_id, created_at desc);
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="logo">
+      <div class="logo-icon">🔥</div>
+      <div class="logo-text">Trend<span>Hunter</span> AI</div>
+    </div>
+    <div class="footer-links">
+      <a href="#">Termos de Uso</a>
+      <a href="#">Privacidade</a>
+      <a href="#">Suporte</a>
+      <a href="#">Blog</a>
+    </div>
+    <div class="footer-copy">© 2025 TrendHunter AI. Todos os direitos reservados.</div>
+  </div>
+</footer>
 
-alter table public.search_history enable row level security;
-create policy "Users can view own search history"
-  on public.search_history for all
-  using (auth.uid() = user_id);
-
-
--- Tabela de produtos favoritos
-create table public.favorites (
-  id uuid default uuid_generate_v4() primary key,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  product_id uuid references public.products(id) on delete cascade not null,
-  notes text,
-  created_at timestamptz not null default now(),
-  unique(user_id, product_id)
-);
-
-alter table public.favorites enable row level security;
-create policy "Users can manage own favorites"
-  on public.favorites for all
-  using (auth.uid() = user_id);
-
-
--- Nichos monitorados pelo usuário
-create table public.monitored_niches (
-  id uuid default uuid_generate_v4() primary key,
-  user_id uuid references public.profiles(id) on delete cascade not null,
-  name text not null,
-  keywords jsonb default '[]',
-  alert_threshold numeric(3,1) default 7.5,
-  alert_enabled boolean default true,
-  last_alert_at timestamptz,
-  created_at timestamptz not null default now()
-);
-
-alter table public.monitored_niches enable row level security;
-create policy "Users can manage own niches"
-  on public.monitored_niches for all
-  using (auth.uid() = user_id);
-
-
--- ============================================================
--- 004_subscriptions.sql — Eventos de assinatura Stripe
--- ============================================================
-
-create table public.subscription_events (
-  id uuid default uuid_generate_v4() primary key,
-  user_id uuid references public.profiles(id) on delete set null,
-  stripe_event_id text unique not null,
-  event_type text not null,
-  payload jsonb not null,
-  processed_at timestamptz,
-  created_at timestamptz not null default now()
-);
-
-create index sub_events_user_idx on public.subscription_events(user_id);
-create index sub_events_type_idx on public.subscription_events(event_type);
-
--- Limites por plano (tabela de referência)
-create table public.plan_limits (
-  plan text primary key,
-  daily_searches int not null,
-  monitored_niches int not null,
-  history_days int not null,
-  ai_copies_per_day int not null,  -- -1 = ilimitado
-  team_members int not null,
-  api_access boolean not null,
-  white_label boolean not null
-);
-
-insert into public.plan_limits values
-  ('free',  5,  1,   7,   0,  1, false, false),
-  ('pro',  -1, 10,  90,  -1,  1, false, false),
-  ('scale',-1, -1, 365,  -1,  5, true,  true);
-
-
--- ============================================================
--- Views úteis para o dashboard admin
--- ============================================================
-
-create or replace view public.admin_stats as
-select
-  (select count(*) from public.profiles) as total_users,
-  (select count(*) from public.profiles where plan = 'pro') as pro_users,
-  (select count(*) from public.profiles where plan = 'scale') as scale_users,
-  (select count(*) from public.profiles where created_at > now() - interval '7 days') as new_users_7d,
-  (select count(*) from public.search_history where created_at > now() - interval '24 hours') as searches_24h,
-  (select count(*) from public.products) as total_products,
-  (select round(avg(viral_score)::numeric, 2) from public.products) as avg_viral_score;
+<script>
+function toggleFaq(el){
+  const a=el.nextElementSibling;
+  const span=el.querySelector('span');
+  const open=a.classList.toggle('open');
+  span.textContent=open?'−':'+';
+}
+</script>
+</body>
+</html>
