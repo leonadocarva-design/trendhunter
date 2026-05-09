@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — TrendHunter AI</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+  <style>
+    body{
+      background:#020408;
+      color:white;
+      font-family:Arial;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      height:100vh;
+    }
+
+    .box{
+      background:#111827;
+      padding:40px;
+      border-radius:12px;
+      width:320px;
+    }
+
+    input{
+      width:100%;
+      padding:12px;
+      margin-top:10px;
+      border:none;
+      border-radius:8px;
+      background:#1e293b;
+      color:white;
+    }
+
+    button{
+      width:100%;
+      padding:12px;
+      margin-top:15px;
+      border:none;
+      border-radius:8px;
+      background:#00e5ff;
+      color:black;
+      font-weight:bold;
+      cursor:pointer;
+    }
+
+    h1{
+      margin-bottom:20px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h1>Entrar</h1>
+
+  <input type="email" id="email" placeholder="Seu email">
+  <input type="password" id="password" placeholder="Sua senha">
+
+  <button onclick="signup()">Criar Conta</button>
+</div>
+
+<script>
+
+const supabaseUrl = "COLE_SUA_URL_SUPABASE";
+const supabaseKey = "COLE_SUA_ANON_KEY";
+
+const supabase = window.supabase.createClient(
+  supabaseUrl,
+  supabaseKey
+);
+
+async function signup(){
+
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password
+  });
+
+  if(error){
+    alert(error.message);
+  } else {
+    alert("Conta criada com sucesso!");
+  }
+}
+
+</script>
+
+</body>
+</html>
+https://ndhudqodqkvjoaeqtzjq.supabase.co
